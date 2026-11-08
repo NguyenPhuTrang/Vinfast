@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGsap } from '~/ composables/useGsap'
+import { useGsap } from '~/composables/useGsap'
 
 const gsap = useGsap()
 
