@@ -9,9 +9,9 @@ import { PassportStrategy } from '@nestjs/passport';
 
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
-import { Role } from '../../common/enums/role.enum.js';
 
 import type { AuthUser } from '../../common/interfaces/auth-user.interface.js';
+import { Role } from '../../generated/prisma/enums.js';
 
 interface JwtPayload {
   sub: string;

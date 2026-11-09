@@ -104,6 +104,18 @@ export function validateEnv(
     );
   }
 
+  // GOOGLE_CLIENT_ID
+const googleClientId = String(
+  config.GOOGLE_CLIENT_ID ?? '',
+).trim();
+
+if (
+  !googleClientId ||
+  !googleClientId.endsWith('.apps.googleusercontent.com')
+) {
+  throw new Error('Invalid GOOGLE_CLIENT_ID');
+}
+
   return {
     ...config,
     NODE_ENV: nodeEnv,
@@ -113,5 +125,6 @@ export function validateEnv(
     CORS_ORIGIN: origins.join(','),
     JWT_ACCESS_SECRET: jwtSecret,
     JWT_ACCESS_EXPIRES_IN: jwtExpiresIn,
+     GOOGLE_CLIENT_ID: googleClientId,
   };
 }

@@ -11,8 +11,8 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
-import type { Role } from '../enums/role.enum.js';
 import type { AuthUser } from '../interfaces/auth-user.interface.js';
+import { Role } from '../../generated/prisma/enums.js';
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
