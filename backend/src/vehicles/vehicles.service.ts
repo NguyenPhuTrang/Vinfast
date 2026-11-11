@@ -16,6 +16,9 @@ import { CreateVehicleDto } from './dto/create-vehicle.dto.js';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto.js';
 import { QueryVehiclesDto } from './dto/query-vehicles.dto.js';
 import { UpdateVehicleStatusDto } from './dto/update-vehicle-status.dto.js';
+import { QueryVehicleVariantsDto } from './dto/query-vehicle-variants.dto.js';
+import { CreateVehicleVariantDto } from './dto/create-vehicle-variant.dto.js';
+import { UpdateVehicleVariantDto } from './dto/update-vehicle-variant.dto.js';
 @Injectable()
 export class VehiclesService {
     constructor(
@@ -299,14 +302,14 @@ export class VehiclesService {
        };
 
        const sortBy = query.sortBy ?? 'createdAt'
-       const sortOrder = query.sortBy ?? 'desc'
+       const sortOrder = query.sortOrder ?? 'desc'
 
        const [vehicles, total] = await this.prisma.$transaction([
             this.prisma.vehicle.findMany({
                 where,
                 skip: (page - 1) *limit,
                 take: limit,
-                orderBy: { [sortBy]: sortBy },
+                orderBy: { [sortBy]: sortOrder },
                 include: {
                     category: true,
                     variants: {
@@ -318,7 +321,7 @@ export class VehiclesService {
        ]);
 
        return {
-        date: vehicles,
+        data: vehicles,
         pagination: {
             page,
             limit,
@@ -539,4 +542,357 @@ export class VehiclesService {
       vehicle,
     };
   }
+
+
+  // ==========================================
+  // VEHICLE VARIANT
+  // ==========================================
+
+  // Public: Lấy danh sách phiên bản đang hoạt động
+  async findPublicVariants(
+    vehicleId: string,
+    query: QueryVehicleVariantsDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id: vehicleId,
+        status: ContentStatus.PUBLISHED,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+
+    const where: Prisma.VehicleVariantWhereInput = {
+      vehicleId,
+      isActive: true,
+      ...(query.search && {
+        OR: [
+          {
+            name: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            code: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }),
+    };
+
+    const [variants, total] = await this.prisma.$transaction([
+      this.prisma.vehicleVariant.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [
+          { sortOrder: 'asc' },
+          { name: 'asc' },
+        ],
+        include: {
+          specifications: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      }),
+      this.prisma.vehicleVariant.count({ where }),
+    ]);
+
+    return {
+      data: variants,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // ================== VEHICLE VARIANT =====================
+
+  // Public: Lấy chi tiết phiên bản
+  async findPublicVariantById(
+    vehicleId: string,
+    id: string,
+  ) {
+    const variant = await this.prisma.vehicleVariant.findFirst({
+      where: {
+        id,
+        vehicleId,
+        isActive: true,
+        vehicle: {
+          status: ContentStatus.PUBLISHED,
+        },
+      },
+      include: {
+        specifications: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        media: {
+          include: {
+            mediaAsset: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Vehicle variant not found');
+    }
+
+    return variant;
+  }
+
+  // Admin: Lấy danh sách tất cả phiên bản của một xe
+  async findAllVariants(
+    vehicleId: string,
+    query: QueryVehicleVariantsDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const sortOrder = query.sortOrder ?? 'asc';
+
+    const where: Prisma.VehicleVariantWhereInput = {
+      vehicleId,
+      ...(query.isActive !== undefined && {
+        isActive: query.isActive,
+      }),
+      ...(query.search && {
+        OR: [
+          {
+            name: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            code: {
+              contains: query.search.trim(),
+              mode: 'insensitive',
+            },
+          },
+        ],
+      }),
+    };
+
+    const orderBy: Prisma.VehicleVariantOrderByWithRelationInput =
+      query.sortBy === 'name'
+        ? { name: sortOrder }
+        : query.sortBy === 'code'
+          ? { code: sortOrder }
+          : query.sortBy === 'createdAt'
+            ? { createdAt: sortOrder }
+            : { sortOrder: sortOrder };
+
+    const [variants, total] = await this.prisma.$transaction([
+      this.prisma.vehicleVariant.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy,
+        include: {
+          specifications: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      }),
+      this.prisma.vehicleVariant.count({ where }),
+    ]);
+
+    return {
+      data: variants,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // Admin: Lấy chi tiết phiên bản theo ID
+  async findVariantById(
+    vehicleId: string,
+    id: string,
+  ) {
+    const variant = await this.prisma.vehicleVariant.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+      include: {
+        specifications: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        media: {
+          include: {
+            mediaAsset: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Vehicle variant not found');
+    }
+
+    return variant;
+  }
+
+  // Admin: Tạo phiên bản mới
+  async createVariant(
+    vehicleId: string,
+    dto: CreateVehicleVariantDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (vehicle.status === ContentStatus.ARCHIVED) {
+      throw new BadRequestException(
+        'Cannot add a variant to an archived vehicle',
+      );
+    }
+
+    try {
+      return await this.prisma.vehicleVariant.create({
+        data: {
+          vehicleId,
+          name: dto.name.trim(),
+          code: dto.code.trim(),
+          description: dto.description?.trim(),
+          isActive: dto.isActive ?? true,
+          sortOrder: dto.sortOrder ?? 0,
+        },
+        include: {
+          specifications: true,
+        },
+      });
+    } catch (error: unknown) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException(
+          'Variant code already exists for this vehicle',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  // Admin: Cập nhật phiên bản
+  async updateVariant(
+    vehicleId: string,
+    id: string,
+    dto: UpdateVehicleVariantDto,
+  ) {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException(
+        'At least one field must be provided',
+      );
+    }
+
+    const existing = await this.prisma.vehicleVariant.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Vehicle variant not found');
+    }
+
+    try {
+      return await this.prisma.vehicleVariant.update({
+        where: { id },
+        data: {
+          ...(dto.name !== undefined && {
+            name: dto.name.trim(),
+          }),
+          ...(dto.code !== undefined && {
+            code: dto.code.trim(),
+          }),
+          ...(dto.description !== undefined && {
+            description: dto.description.trim(),
+          }),
+          ...(dto.isActive !== undefined && {
+            isActive: dto.isActive,
+          }),
+          ...(dto.sortOrder !== undefined && {
+            sortOrder: dto.sortOrder,
+          }),
+        },
+        include: {
+          specifications: true,
+        },
+      });
+    } catch (error: unknown) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException(
+          'Variant code already exists for this vehicle',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  // Admin: Xóa mềm phiên bản
+  async deleteVariant(
+    vehicleId: string,
+    id: string,
+  ) {
+    const existing = await this.prisma.vehicleVariant.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Vehicle variant not found');
+    }
+
+    if (!existing.isActive) {
+      return {
+        message: 'Vehicle variant is already inactive',
+      };
+    }
+
+    const variant = await this.prisma.vehicleVariant.update({
+      where: { id },
+      data: {
+        isActive: false,
+      },
+    });
+
+    return {
+      message: 'Vehicle variant deactivated successfully',
+      variant,
+    };
+  }
+
 }
