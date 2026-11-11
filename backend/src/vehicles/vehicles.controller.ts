@@ -10,6 +10,9 @@ import { UpdateVehicleStatusDto } from './dto/update-vehicle-status.dto.js';
 import { QueryVehicleVariantsDto } from './dto/query-vehicle-variants.dto.js';
 import { CreateVehicleVariantDto } from './dto/create-vehicle-variant.dto.js';
 import { UpdateVehicleVariantDto } from './dto/update-vehicle-variant.dto.js';
+import { CreateVehicleSpecificationDto } from './dto/create-vehicle-specification.dto.js';
+import { QueryVehicleSpecificationsDto } from './dto/query-vehicle-specifications.dto.js';
+import { UpdateVehicleSpecificationDto } from './dto/update-vehicle-specification.dto.js';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -190,6 +193,113 @@ export class VehiclesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     ) {
     return this.vehiclesService.deleteVariant(vehicleId, id);
+    }
+
+    // ================= VEHICLE SPECIFICATION ==================
+
+    // GET /vehicles/:vehicleId/variants/:variantId/specifications
+    @Get(':vehicleId/variants/:variantId/specifications')
+    findPublicSpecifications(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Query() query: QueryVehicleSpecificationsDto,
+    ) {
+    return this.vehiclesService.findPublicSpecifications(
+        vehicleId,
+        variantId,
+        query,
+    );
+    }
+
+    // GET /vehicles/:vehicleId/variants/:variantId/specifications/:id
+    @Get(':vehicleId/variants/:variantId/specifications/:id')
+    findPublicSpecificationById(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    ) {
+    return this.vehiclesService.findPublicSpecificationById(
+        vehicleId,
+        variantId,
+        id,
+    );
+    }
+
+    // GET /vehicles/admin/:vehicleId/variants/:variantId/specifications
+    @UseGuards(JwtAuthGuard)
+    @Get('admin/:vehicleId/variants/:variantId/specifications')
+    findAllSpecifications(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Query() query: QueryVehicleSpecificationsDto,
+    ) {
+    return this.vehiclesService.findAllSpecifications(
+        vehicleId,
+        variantId,
+        query,
+    );
+    }
+
+    // GET /vehicles/admin/:vehicleId/variants/:variantId/specifications/:id
+    @UseGuards(JwtAuthGuard)
+    @Get('admin/:vehicleId/variants/:variantId/specifications/:id')
+    findSpecificationById(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    ) {
+    return this.vehiclesService.findSpecificationById(
+        vehicleId,
+        variantId,
+        id,
+    );
+    }
+
+    // POST /vehicles/:vehicleId/variants/:variantId/specifications
+    @UseGuards(JwtAuthGuard)
+    @Post(':vehicleId/variants/:variantId/specifications')
+    createSpecification(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Body() dto: CreateVehicleSpecificationDto,
+    ) {
+    return this.vehiclesService.createSpecification(
+        vehicleId,
+        variantId,
+        dto,
+    );
+    }
+
+    // PATCH /vehicles/:vehicleId/variants/:variantId/specifications/:id
+    @UseGuards(JwtAuthGuard)
+    @Patch(':vehicleId/variants/:variantId/specifications/:id')
+    updateSpecification(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateVehicleSpecificationDto,
+    ) {
+    return this.vehiclesService.updateSpecification(
+        vehicleId,
+        variantId,
+        id,
+        dto,
+    );
+    }
+
+    // DELETE /vehicles/:vehicleId/variants/:variantId/specifications/:id
+    @UseGuards(JwtAuthGuard)
+    @Delete(':vehicleId/variants/:variantId/specifications/:id')
+    deleteSpecification(
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    ) {
+    return this.vehiclesService.deleteSpecification(
+        vehicleId,
+        variantId,
+        id,
+    );
     }
 
 }
