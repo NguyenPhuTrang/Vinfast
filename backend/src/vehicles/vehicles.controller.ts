@@ -7,6 +7,9 @@ import { QueryVehiclesDto } from './dto/query-vehicles.dto.js';
 import { CreateVehicleDto } from './dto/create-vehicle.dto.js';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto.js';
 import { UpdateVehicleStatusDto } from './dto/update-vehicle-status.dto.js';
+import { QueryVehicleVariantsDto } from './dto/query-vehicle-variants.dto.js';
+import { CreateVehicleVariantDto } from './dto/create-vehicle-variant.dto.js';
+import { UpdateVehicleVariantDto } from './dto/update-vehicle-variant.dto.js';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -116,6 +119,77 @@ export class VehiclesController {
         @Param('id', ParseUUIDPipe) id: string,
     ) {
         return this.vehiclesService.deleteVehicle(id);
+    }
+
+    // ==================== VEHICLE VARIANTS ====================
+
+    // Public: Get active variants of a published vehicle
+    @Get(':vehicleId/variants')
+    findPublicVariants(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Query() query: QueryVehicleVariantsDto,
+    ) {
+    return this.vehiclesService.findPublicVariants(vehicleId, query);
+    }
+
+    // Public: Get variant detail
+    @Get(':vehicleId/variants/:id')
+    findPublicVariantById(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    ) {
+    return this.vehiclesService.findPublicVariantById(vehicleId, id);
+    }
+
+    // Admin: Get all variants of a vehicle
+    @Get('admin/:vehicleId/variants')
+    @UseGuards(JwtAuthGuard)
+    findAllVariants(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Query() query: QueryVehicleVariantsDto,
+    ) {
+    return this.vehiclesService.findAllVariants(vehicleId, query);
+    }
+
+    // Admin: Get variant detail
+    @Get('admin/:vehicleId/variants/:id')
+    @UseGuards(JwtAuthGuard)
+    findVariantById(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    ) {
+    return this.vehiclesService.findVariantById(vehicleId, id);
+    }
+
+    // Admin: Create variant
+    @Post(':vehicleId/variants')
+    @UseGuards(JwtAuthGuard)
+    createVariant(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Body() dto: CreateVehicleVariantDto,
+    ) {
+    return this.vehiclesService.createVariant(vehicleId, dto);
+    }
+
+    // Admin: Update variant
+    @Patch(':vehicleId/variants/:id')
+    @UseGuards(JwtAuthGuard)
+    updateVariant(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateVehicleVariantDto,
+    ) {
+    return this.vehiclesService.updateVariant(vehicleId, id, dto);
+    }
+
+    // Admin: Delete variant (soft delete)
+    @Delete(':vehicleId/variants/:id')
+    @UseGuards(JwtAuthGuard)
+    deleteVariant(
+    @Param('vehicleId', new ParseUUIDPipe()) vehicleId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    ) {
+    return this.vehiclesService.deleteVariant(vehicleId, id);
     }
 
 }
