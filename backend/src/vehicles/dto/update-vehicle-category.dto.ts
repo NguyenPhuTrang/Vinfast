@@ -36,4 +36,11 @@ export class UpdateVehicleCategoryDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+    categoryId: any;
+    modelCode: undefined;
+    tagline: undefined;
+    shortDescription: undefined;
+    isFeatured: undefined;
+    seoTitle: undefined;
+    seoDescription: undefined;
 }

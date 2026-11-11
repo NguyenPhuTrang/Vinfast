@@ -1,8 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Delete, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Delete, UseGuards, Query } from '@nestjs/common';
 import { VehiclesService } from './vehicles.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CreateVehicleCategoryDto } from './dto/create-vehicle-category.dto.js';
 import { UpdateVehicleCategoryDto } from './dto/update-vehicle-category.dto.js';
+import { QueryVehiclesDto } from './dto/query-vehicles.dto.js';
+import { CreateVehicleDto } from './dto/create-vehicle.dto.js';
+import { UpdateVehicleDto } from './dto/update-vehicle.dto.js';
+import { UpdateVehicleStatusDto } from './dto/update-vehicle-status.dto.js';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -10,7 +14,7 @@ export class VehiclesController {
 
     @Get('categories')
     findPublicCategories() {
-        return this.vehiclesService.findAllCategories();
+        return this.vehiclesService.findPublicCategories;
     }
 
     @Get('categories/:slug')
@@ -20,7 +24,7 @@ export class VehiclesController {
         return this.vehiclesService.findCategoryBySlug(slug)
     }
 
-    @Get('category/admin')
+    @Get('categories/admin')
     @UseGuards(JwtAuthGuard)
     findAllCategories() {
         return this.vehiclesService.findAllCategories();
@@ -48,4 +52,70 @@ export class VehiclesController {
     ){
         return this.vehiclesService.deleteCategory(id);
     }
+
+    @Get('admin')
+    @UseGuards(JwtAuthGuard)
+    findAllVehicles(
+        @Query() query: QueryVehiclesDto
+    ) {
+        return this.vehiclesService.findAllVehicles(query)
+    }
+
+    @Get('admin/:id')
+    @UseGuards(JwtAuthGuard)
+    findVehicleById(
+        @Param('id', ParseUUIDPipe) id: string
+    ) {
+        return this.vehiclesService.findVehicleById(id);
+    }
+
+    @Get()
+    findPublicVehicles(
+        @Query() query:QueryVehiclesDto,
+    ){
+        return this.vehiclesService.findPublicVehicles(query)
+    }
+
+    @Get(':slug')
+    findPublicVehicleBySlug(
+        @Param('slug') slug: string
+    ){
+        return this.vehiclesService.findPublicVehicleBySlug(slug)
+    }
+
+    @Post()
+    @UseGuards(JwtAuthGuard)
+    createVehicle(
+        @Body() dto: CreateVehicleDto,
+    ) {
+        return this.vehiclesService.createVehicle(dto);
+    }
+
+    @Patch(':id')
+    @UseGuards(JwtAuthGuard)
+    updateVehicle(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateVehicleDto,
+    ) {
+        return this.vehiclesService.updateVehicle(id, dto);
+    }
+
+    @Patch(':id/status')
+    @UseGuards(JwtAuthGuard)
+    updateVehicleStatus(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateVehicleStatusDto,
+    ) {
+        return this.vehiclesService.updateVehicleStatus(id, dto);
+    }
+
+   
+    @Delete(':id') // Admin: Xóa mềm xe
+    @UseGuards(JwtAuthGuard)
+    deleteVehicle(
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.vehiclesService.deleteVehicle(id);
+    }
+
 }
