@@ -13,6 +13,9 @@ import { UpdateVehicleVariantDto } from './dto/update-vehicle-variant.dto.js';
 import { CreateVehicleSpecificationDto } from './dto/create-vehicle-specification.dto.js';
 import { QueryVehicleSpecificationsDto } from './dto/query-vehicle-specifications.dto.js';
 import { UpdateVehicleSpecificationDto } from './dto/update-vehicle-specification.dto.js';
+import { QueryVehicleMediaDto } from './dto/query-vehicle-media.dto.js';
+import { CreateVehicleMediaDto } from './dto/create-vehicle-media.dto.js';
+import { UpdateVehicleMediaDto } from './dto/update-vehicle-media.dto.js';
 
 @Controller('vehicles')
 export class VehiclesController {
@@ -20,7 +23,7 @@ export class VehiclesController {
 
     @Get('categories')
     findPublicCategories() {
-        return this.vehiclesService.findPublicCategories;
+        return this.vehiclesService.findPublicCategories();
     }
 
     @Get('categories/:slug')
@@ -300,6 +303,83 @@ export class VehiclesController {
         variantId,
         id,
     );
+    }
+    
+  // VEHICLE MEDIA
+
+    // GET /vehicles/:vehicleId/media
+    @Get(':vehicleId/media')
+    findPublicMedia(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Query() query: QueryVehicleMediaDto,
+    ) {
+        return this.vehiclesService.findPublicMedia(vehicleId, query);
+    }
+
+    // Public: Lấy chi tiết media
+    // GET /vehicles/:vehicleId/media/:id
+    @Get(':vehicleId/media/:id')
+    findPublicMediaById(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.vehiclesService.findPublicMediaById(vehicleId, id);
+    }
+
+    // Admin: Lấy danh sách media của xe
+    // GET /vehicles/admin/:vehicleId/media
+    @Get('admin/:vehicleId/media')
+    @UseGuards(JwtAuthGuard)
+    findAllMedia(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Query() query: QueryVehicleMediaDto,
+    ) {
+        return this.vehiclesService.findAllMedia(vehicleId, query);
+    }
+
+    // Admin: Lấy chi tiết media
+    // GET /vehicles/admin/:vehicleId/media/:id
+    @Get('admin/:vehicleId/media/:id')
+    @UseGuards(JwtAuthGuard)
+    findMediaById(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.vehiclesService.findMediaById(vehicleId, id);
+    }
+
+    // Admin: Thêm media vào xe
+    // POST /vehicles/:vehicleId/media
+    @Post(':vehicleId/media')
+    @UseGuards(JwtAuthGuard)
+    createMedia(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Body() dto: CreateVehicleMediaDto,
+    ) {
+        return this.vehiclesService.createMedia(vehicleId, dto);
+    }
+
+    // Admin: Cập nhật media
+    // PATCH /vehicles/:vehicleId/media/:id
+    @Patch(':vehicleId/media/:id')
+    @UseGuards(JwtAuthGuard)
+    updateMedia(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() dto: UpdateVehicleMediaDto,
+    ) {
+        return this.vehiclesService.updateMedia(vehicleId, id, dto);
+    }
+
+    // Admin: Gỡ media khỏi xe
+    // DELETE /vehicles/:vehicleId/media/:id
+    @Delete(':vehicleId/media/:id')
+    @UseGuards(JwtAuthGuard)
+    deleteMedia(
+        @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
+        @Param('id', ParseUUIDPipe) id: string,
+    ) {
+        return this.vehiclesService.deleteMedia(vehicleId, id);
     }
 
 }

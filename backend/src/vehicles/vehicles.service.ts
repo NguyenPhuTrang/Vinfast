@@ -7,7 +7,7 @@ import {
 
 import { PrismaService } from '../database/prisma.service.js';
 
-import { ContentStatus, Prisma } from '../generated/prisma/client.js';
+import { ContentStatus, MediaType, Prisma, VehicleMediaRole } from '../generated/prisma/client.js';
 
 import { CreateVehicleCategoryDto } from './dto/create-vehicle-category.dto.js';
 import { UpdateVehicleCategoryDto } from './dto/update-vehicle-category.dto.js';
@@ -22,6 +22,9 @@ import { UpdateVehicleVariantDto } from './dto/update-vehicle-variant.dto.js';
 import { QueryVehicleSpecificationsDto } from './dto/query-vehicle-specifications.dto.js';
 import { CreateVehicleSpecificationDto } from './dto/create-vehicle-specification.dto.js';
 import { UpdateVehicleSpecificationDto } from './dto/update-vehicle-specification.dto.js';
+import { QueryVehicleMediaDto } from './dto/query-vehicle-media.dto.js';
+import { CreateVehicleMediaDto } from './dto/create-vehicle-media.dto.js';
+import { UpdateVehicleMediaDto } from './dto/update-vehicle-media.dto.js';
 @Injectable()
 export class VehiclesService {
     constructor(
@@ -1280,6 +1283,436 @@ export class VehiclesService {
 
     return {
       message: 'Vehicle specification deleted successfully',
+    };
+  }
+
+  // ================= VEHICLE MEDIA =====================
+
+  // Kiểm tra MediaAsset có đúng loại ảnh/video theo role không
+  private async validateMediaAsset(
+    mediaAssetId: string,
+    role: VehicleMediaRole,
+  ) {
+    const mediaAsset = await this.prisma.mediaAsset.findUnique({
+      where: { id: mediaAssetId },
+    });
+
+    if (!mediaAsset) {
+      throw new NotFoundException('Media asset not found');
+    }
+
+    const expectedMediaType =
+      role === VehicleMediaRole.VIDEO
+        ? MediaType.VIDEO
+        : MediaType.IMAGE;
+
+    if (mediaAsset.mediaType !== expectedMediaType) {
+      throw new BadRequestException(
+        `Media asset type must be ${expectedMediaType} for this role`,
+      );
+    }
+
+    return mediaAsset;
+  }
+
+  // Kiểm tra variant có thuộc đúng vehicle không
+  private async validateVehicleVariant(
+    vehicleId: string,
+    variantId: string,
+  ) {
+    const variant = await this.prisma.vehicleVariant.findFirst({
+      where: {
+        id: variantId,
+        vehicleId,
+      },
+    });
+
+    if (!variant) {
+      throw new BadRequestException(
+        'Vehicle variant does not belong to this vehicle',
+      );
+    }
+
+    return variant;
+  }
+
+  // Public: Lấy danh sách media của xe
+  async findPublicMedia(
+    vehicleId: string,
+    query: QueryVehicleMediaDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id: vehicleId,
+        status: ContentStatus.PUBLISHED,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (query.variantId) {
+      const variant = await this.prisma.vehicleVariant.findFirst({
+        where: {
+          id: query.variantId,
+          vehicleId,
+          isActive: true,
+        },
+      });
+
+      if (!variant) {
+        throw new NotFoundException('Vehicle variant not found');
+      }
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: Prisma.VehicleMediaWhereInput = {
+      vehicleId,
+      OR: query.variantId
+        ? [
+            { variantId: null },
+            { variantId: query.variantId },
+          ]
+        : [
+            { variantId: null },
+            {
+              variant: {
+                is: {
+                  isActive: true,
+                },
+              },
+            },
+          ],
+      ...(query.role && {
+        role: query.role,
+      }),
+      ...(query.isPrimary !== undefined && {
+        isPrimary: query.isPrimary,
+      }),
+    };
+
+    const sortBy = query.sortBy ?? 'sortOrder';
+    const sortOrder = query.sortOrder ?? 'asc';
+
+    const [media, total] = await this.prisma.$transaction([
+      this.prisma.vehicleMedia.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+        include: {
+          mediaAsset: true,
+        },
+      }),
+      this.prisma.vehicleMedia.count({ where }),
+    ]);
+
+    return {
+      data: media,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // Public: Lấy chi tiết một media
+  async findPublicMediaById(
+    vehicleId: string,
+    id: string,
+  ) {
+    const media = await this.prisma.vehicleMedia.findFirst({
+      where: {
+        id,
+        vehicleId,
+        vehicle: {
+          status: ContentStatus.PUBLISHED,
+        },
+        OR: [
+          { variantId: null },
+          {
+            variant: {
+              is: {
+                isActive: true,
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        mediaAsset: true,
+      },
+    });
+
+    if (!media) {
+      throw new NotFoundException('Vehicle media not found');
+    }
+
+    return media;
+  }
+
+  // Admin: Lấy danh sách media của xe
+  async findAllMedia(
+    vehicleId: string,
+    query: QueryVehicleMediaDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (query.variantId) {
+      await this.validateVehicleVariant(vehicleId, query.variantId);
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: Prisma.VehicleMediaWhereInput = {
+      vehicleId,
+      ...(query.variantId && {
+        variantId: query.variantId,
+      }),
+      ...(query.role && {
+        role: query.role,
+      }),
+      ...(query.isPrimary !== undefined && {
+        isPrimary: query.isPrimary,
+      }),
+    };
+
+    const sortBy = query.sortBy ?? 'sortOrder';
+    const sortOrder = query.sortOrder ?? 'asc';
+
+    const [media, total] = await this.prisma.$transaction([
+      this.prisma.vehicleMedia.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+        include: {
+          mediaAsset: true,
+          variant: true,
+        },
+      }),
+      this.prisma.vehicleMedia.count({ where }),
+    ]);
+
+    return {
+      data: media,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // Admin: Lấy chi tiết media
+  async findMediaById(
+    vehicleId: string,
+    id: string,
+  ) {
+    const media = await this.prisma.vehicleMedia.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+      include: {
+        mediaAsset: true,
+        variant: true,
+      },
+    });
+
+    if (!media) {
+      throw new NotFoundException('Vehicle media not found');
+    }
+
+    return media;
+  }
+
+  // Admin: Thêm media vào xe
+  async createMedia(
+    vehicleId: string,
+    dto: CreateVehicleMediaDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (vehicle.status === ContentStatus.ARCHIVED) {
+      throw new BadRequestException(
+        'Cannot add media to an archived vehicle',
+      );
+    }
+
+    const variantId = dto.variantId ?? null;
+    const role = dto.role ?? VehicleMediaRole.GALLERY;
+
+    if (variantId) {
+      await this.validateVehicleVariant(vehicleId, variantId);
+    }
+
+    await this.validateMediaAsset(dto.mediaAssetId, role);
+
+    const isPrimary = dto.isPrimary ?? false;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (isPrimary) {
+        await tx.vehicleMedia.updateMany({
+          where: {
+            vehicleId,
+            variantId,
+            role,
+            isPrimary: true,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      return tx.vehicleMedia.create({
+        data: {
+          vehicleId,
+          variantId,
+          mediaAssetId: dto.mediaAssetId,
+          role,
+          isPrimary,
+          sortOrder: dto.sortOrder ?? 0,
+        },
+        include: {
+          mediaAsset: true,
+          variant: true,
+        },
+      });
+    });
+  }
+
+  // Admin: Cập nhật media
+  async updateMedia(
+    vehicleId: string,
+    id: string,
+    dto: UpdateVehicleMediaDto,
+  ) {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException(
+        'At least one field must be provided',
+      );
+    }
+
+    const existing = await this.prisma.vehicleMedia.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+      include: {
+        mediaAsset: true,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Vehicle media not found');
+    }
+
+    const nextVariantId =
+      dto.variantId !== undefined
+        ? dto.variantId
+        : existing.variantId;
+
+    const nextRole = dto.role ?? existing.role;
+    const nextIsPrimary = dto.isPrimary ?? existing.isPrimary;
+
+    if (nextVariantId) {
+      await this.validateVehicleVariant(vehicleId, nextVariantId);
+    }
+
+    await this.validateMediaAsset(
+      existing.mediaAssetId,
+      nextRole,
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      if (nextIsPrimary) {
+        await tx.vehicleMedia.updateMany({
+          where: {
+            vehicleId,
+            variantId: nextVariantId,
+            role: nextRole,
+            isPrimary: true,
+            NOT: {
+              id,
+            },
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      return tx.vehicleMedia.update({
+        where: { id },
+        data: {
+          ...(dto.variantId !== undefined && {
+            variantId: dto.variantId,
+          }),
+          ...(dto.role !== undefined && {
+            role: dto.role,
+          }),
+          ...(dto.isPrimary !== undefined && {
+            isPrimary: dto.isPrimary,
+          }),
+          ...(dto.sortOrder !== undefined && {
+            sortOrder: dto.sortOrder,
+          }),
+        },
+        include: {
+          mediaAsset: true,
+          variant: true,
+        },
+      });
+    });
+  }
+
+  // Admin: Gỡ media khỏi xe
+  async deleteMedia(
+    vehicleId: string,
+    id: string,
+  ) {
+    const existing = await this.prisma.vehicleMedia.findFirst({
+      where: {
+        id,
+        vehicleId,
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Vehicle media not found');
+    }
+
+    await this.prisma.vehicleMedia.delete({
+      where: { id },
+    });
+
+    return {
+      message: 'Vehicle media deleted successfully',
     };
   }
 
