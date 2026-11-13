@@ -36,7 +36,7 @@ export function validateEnv(
 
   // API_PREFIX
   const apiPrefix = String(config.API_PREFIX ?? 'api')
-    .replace(/^\/+|\/+$/g, '');
+  .replace(/^\/+|\/+$/g, '');
 
   if (!apiPrefix || apiPrefix.includes(' ')) {
     throw new Error('Invalid API_PREFIX');
@@ -79,7 +79,7 @@ export function validateEnv(
   }
 
   // JWT_ACCESS_SECRET
-  const jwtSecret = String(config.JWT_ACCESS_SECRET ?? '');
+  const jwtSecret = String(config.JWT_ACCESS_SECRET ?? '').trim();
 
   if (
     jwtSecret.length < 32 ||
@@ -105,16 +105,41 @@ export function validateEnv(
   }
 
   // GOOGLE_CLIENT_ID
-const googleClientId = String(
-  config.GOOGLE_CLIENT_ID ?? '',
-).trim();
+  const googleClientId = String(
+    config.GOOGLE_CLIENT_ID ?? '',
+  ).trim();
 
-if (
-  !googleClientId ||
-  !googleClientId.endsWith('.apps.googleusercontent.com')
-) {
-  throw new Error('Invalid GOOGLE_CLIENT_ID');
-}
+  if (
+    !googleClientId ||
+    !googleClientId.endsWith('.apps.googleusercontent.com')
+  ) {
+    throw new Error('Invalid GOOGLE_CLIENT_ID');
+  }
+
+  // CLOUDINARY
+  const cloudinaryCloudName = String(
+    config.CLOUDINARY_CLOUD_NAME ?? '',
+  ).trim();
+
+  const cloudinaryApiKey = String(
+    config.CLOUDINARY_API_KEY ?? '',
+  ).trim();
+
+  const cloudinaryApiSecret = String(
+    config.CLOUDINARY_API_SECRET ?? '',
+  ).trim();
+
+  if (!cloudinaryCloudName) {
+    throw new Error('CLOUDINARY_CLOUD_NAME is required');
+  }
+
+  if (!cloudinaryApiKey) {
+    throw new Error('CLOUDINARY_API_KEY is required');
+  }
+
+  if (!cloudinaryApiSecret) {
+    throw new Error('CLOUDINARY_API_SECRET is required');
+  }
 
   return {
     ...config,
@@ -125,6 +150,13 @@ if (
     CORS_ORIGIN: origins.join(','),
     JWT_ACCESS_SECRET: jwtSecret,
     JWT_ACCESS_EXPIRES_IN: jwtExpiresIn,
-     GOOGLE_CLIENT_ID: googleClientId,
+    GOOGLE_CLIENT_ID: googleClientId,
+
+    // Cloudinary
+
+    CLOUDINARY_CLOUD_NAME: cloudinaryCloudName,
+    CLOUDINARY_API_KEY: cloudinaryApiKey,
+    CLOUDINARY_API_SECRET: cloudinaryApiSecret,
+  
   };
 }
